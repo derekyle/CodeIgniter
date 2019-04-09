@@ -59,7 +59,8 @@ class CI_Cache_redis extends CI_Driver
 		'password' => NULL,
 		'port' => 6379,
 		'timeout' => 0,
-		'database' => 0
+		'database' => 0,
+		'ignore_on_fail' => false
 	);
 
 	/**
@@ -76,8 +77,8 @@ class CI_Cache_redis extends CI_Driver
 	 *
 	 * Setup Redis
 	 *
-	 * Loads Redis config file if present. Will halt execution
-	 * if a Redis connection can't be established.
+	 * Calls is_supported which will check if redis is
+	 * supported AND if a Redis connection can be established
 	 *
 	 * @return	void
 	 * @see		Redis::connect()
@@ -89,7 +90,20 @@ class CI_Cache_redis extends CI_Driver
 			log_message('error', 'Cache: Failed to create Redis object; extension not loaded?');
 			return;
 		}
+	}
 
+	// ------------------------------------------------------------------------
+
+	/**
+	* Loads the Redis Driver
+	*
+	* Loads Redis config file if present. Will return false
+	* if a Redis connection can't be established (assuming ignore_on_fail is true).
+	*
+	* @return void
+	*/
+	private function load_driver() {
+	
 		$CI =& get_instance();
 
 		if ($CI->config->load('redis', TRUE, TRUE))
@@ -123,11 +137,16 @@ class CI_Cache_redis extends CI_Driver
 		catch (RedisException $e)
 		{
 			log_message('error', 'Cache: Redis connection refused ('.$e->getMessage().')');
+			
+			if ($config['ignore_on_fail']) {
+				return false;
+			}
 		}
+		
+		return true;
+		
 	}
-
-	// ------------------------------------------------------------------------
-
+	
 	/**
 	 * Get cache
 	 *
@@ -306,7 +325,7 @@ class CI_Cache_redis extends CI_Driver
 	 */
 	public function is_supported()
 	{
-		return extension_loaded('redis');
+		return (extension_loaded('redis') AND $this->load_driver());
 	}
 
 	// ------------------------------------------------------------------------
